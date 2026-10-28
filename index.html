@@ -1,0 +1,330 @@
+HTML
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #15171f;
+    --muted: #6b7080;
+    --paper: #f6f7fb;
+    --card: #ffffff;
+    --line: #e1e4ee;
+    --blue: #2a3fd8;
+    --blue-ink: #ffffff;
+    --signal: #ffd23f;
+    --green: #16a34a;
+    --red: #c62828;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: "Rubik", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+    line-height: 1.4;
+  }
+  main { max-width: 480px; margin: 0 auto; padding: 16px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  h1 { font-size: 20px; margin: 0; font-weight: 700; }
+  .lang { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; cursor: pointer; color: var(--ink); }
+
+  .board { background: var(--blue); color: var(--blue-ink); border-radius: 20px; padding: 22px 20px 20px; text-align: center; }
+  .board .label { font-size: 16px; opacity: .85; }
+  .board .num { font-size: 96px; font-weight: 900; line-height: 1; margin: 6px 0 4px; letter-spacing: -2px; }
+  .board .who { font-size: 20px; font-weight: 500; min-height: 28px; overflow-wrap: anywhere; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-top: 14px; }
+  label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+  input[type=text] { width: 100%; font: inherit; font-size: 18px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); }
+  input[type=text]:focus-visible, button:focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; }
+  .btn { display: block; width: 100%; margin-top: 12px; font: inherit; font-size: 18px; font-weight: 700; padding: 14px; border: 0; border-radius: 12px; background: var(--ink); color: #fff; cursor: pointer; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.go { background: var(--green); }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); font-weight: 500; }
+
+  .mine { text-align: center; }
+  .mine .label { margin: 0; }
+  .mine .big { font-size: 64px; font-weight: 900; line-height: 1.05; }
+  .mine .state { font-size: 18px; font-weight: 500; margin-top: 4px; }
+  .mine.turn { background: var(--signal); border-color: var(--signal); }
+  .mine.turn .label { color: var(--ink); }
+  .mine.turn .state { font-size: 24px; font-weight: 900; }
+
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  li:first-child { border-top: 0; }
+  li .n { min-width: 42px; font-weight: 900; font-size: 20px; }
+  li .nm { flex: 1; overflow-wrap: anywhere; }
+  li.me .nm { font-weight: 700; }
+  li.me { background: #fff8d9; margin: 0 -10px; padding: 10px; border-radius: 10px; border-top-color: transparent; }
+  li .tag { font-size: 13px; color: var(--muted); }
+  li .tag.now { color: var(--blue); font-weight: 700; }
+  .mini { font: inherit; font-size: 13px; border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 4px 10px; cursor: pointer; color: var(--ink); }
+  .mini.del { color: var(--red); }
+  .count { color: var(--muted); font-size: 14px; margin: 0 0 6px; }
+  .empty { color: var(--muted); text-align: center; padding: 8px 0; }
+  .notice { background: #fff3f3; border: 1px solid #f3c5c5; color: #7a1f1f; border-radius: 12px; padding: 14px; margin-top: 14px; font-size: 15px; }
+  .admin { margin-top: 14px; text-align: center; }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="t-title">Queue</h1>
+    <button class="lang" id="langBtn" type="button">עברית</button>
+  </header>
+
+  <section class="board" aria-live="polite">
+    <div class="label" id="t-now">Now serving</div>
+    <div class="num" id="nowNum">–</div>
+    <div class="who" id="nowWho"></div>
+  </section>
+
+  <section class="card" id="joinCard">
+    <label for="nameIn" id="t-name">Your name</label>
+    <input type="text" id="nameIn" maxlength="30" autocomplete="given-name" enterkeyhint="go">
+    <button class="btn" id="joinBtn" type="button">Take a number</button>
+  </section>
+
+  <section class="card mine" id="mineCard" hidden>
+    <p class="label" id="t-yours">Your number</p>
+    <div class="big" id="myNum"></div>
+    <div class="state" id="myState"></div>
+    <button class="btn go" id="doneBtn" type="button" hidden></button>
+    <button class="btn ghost" id="leaveBtn" type="button" hidden></button>
+  </section>
+
+  <section class="card" id="listCard">
+    <p class="count" id="count"></p>
+    <ul id="list"></ul>
+    <div class="empty" id="empty"></div>
+  </section>
+
+  <div class="admin" id="admin" hidden>
+    <button class="mini del" id="resetBtn" type="button"></button>
+  </div>
+
+  <div class="notice" id="notice" hidden></div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, onValue, runTransaction, set, update, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+/* ============ 1. PASTE YOUR FIREBASE CONFIG HERE ============ */
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyB8G4YraSPsQmUcdlKzZ_R83ogOOnweWGM",
+  authDomain: "queue1app.firebaseapp.com",
+  databaseURL: "https://queue1app-default-rtdb.firebaseio.com",
+  projectId: "queue1app",
+  storageBucket: "queue1app.firebasestorage.app",
+  messagingSenderId: "475517859324",
+  appId: "1:475517859324:web:3ecef4d2454d553ae3ee79"
+};
+  
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+/* ============================================================ */
+
+const T = {
+  en: {
+    dir: "ltr", title: "Queue", now: "Now serving", nobody: "No one yet", name: "Your name",
+    join: "Take a number", yours: "Your number", turn: "It’s your turn!", next: "You’re next",
+    ahead: n => n + " people ahead of you", ahead1: "1 person ahead of you",
+    done: "I’m done", leave: "Leave queue", waiting: n => n + " waiting", served: n => n + " served",
+    empty: "The queue is empty. Take the first number.", wait: "waiting", nowTag: "now",
+    doneBtn: "Done", remove: "Remove", reset: "Reset the whole queue", resetAsk: "Delete everyone and restart at 1?",
+    setup: "Setup needed: paste your Firebase config at the top of index.html.",
+    err: "Can’t reach the queue. Check your connection and the database rules.", lang: "עברית", pageTitle: "Queue"
+  },
+  he: {
+    dir: "rtl", title: "תור", now: "כעת בטיפול", nobody: "עדיין אף אחד", name: "השם שלכם",
+    join: "קחו מספר", yours: "המספר שלכם", turn: "הגיע תורכם!", next: "אתם הבאים",
+    ahead: n => "לפניכם " + n + " אנשים", ahead1: "לפניכם אדם אחד",
+    done: "סיימתי", leave: "יציאה מהתור", waiting: n => n + " ממתינים", served: n => n + " טופלו",
+    empty: "התור ריק. קחו את המספר הראשון.", wait: "ממתין", nowTag: "עכשיו",
+    doneBtn: "סיים", remove: "הסר", reset: "איפוס כל התור", resetAsk: "למחוק את כולם ולהתחיל מ-1?",
+    setup: "נדרשת הגדרה: הדביקו את הגדרות Firebase בראש הקובץ index.html.",
+    err: "אין חיבור לתור. בדקו חיבור לאינטרנט וכללי מסד הנתונים.", lang: "English", pageTitle: "תור"
+  }
+};
+
+const $ = id => document.getElementById(id);
+let lang = "en";
+if ((navigator.language || "").toLowerCase().startsWith("he")) lang = "he";
+try { const s = localStorage.getItem("q_lang"); if (s) lang = s; } catch (e) {}
+
+let tickets = {};      // n -> {n,name,done}
+let myN = null;
+try { myN = parseInt(localStorage.getItem("q_my"), 10) || null; } catch (e) {}
+let wasMyTurn = false;
+const isAdmin = location.hash === "#admin";
+let db = null;
+let connected = false;
+
+function t() { return T[lang]; }
+
+function applyLang() {
+  const s = t();
+  document.documentElement.lang = lang;
+  document.documentElement.dir = s.dir;
+  document.title = s.pageTitle;
+  $("t-title").textContent = s.title;
+  $("t-now").textContent = s.now;
+  $("t-name").textContent = s.name;
+  $("joinBtn").textContent = s.join;
+  $("t-yours").textContent = s.yours;
+  $("doneBtn").textContent = s.done;
+  $("leaveBtn").textContent = s.leave;
+  $("resetBtn").textContent = s.reset;
+  $("langBtn").textContent = s.lang;
+  $("empty").textContent = s.empty;
+  render();
+}
+
+function activeList() {
+  return Object.values(tickets).filter(x => x && !x.done).sort((a, b) => a.n - b.n);
+}
+
+function render() {
+  const s = t();
+  const act = activeList();
+  const served = Object.values(tickets).filter(x => x && x.done).length;
+  const cur = act[0];
+
+  $("nowNum").textContent = cur ? cur.n : "–";
+  $("nowWho").textContent = cur ? cur.name : s.nobody;
+
+  // my ticket
+  const mine = myN && tickets[myN] && !tickets[myN].done ? tickets[myN] : null;
+  if (myN && connected && !mine) { myN = null; try { localStorage.removeItem("q_my"); } catch (e) {} }
+  $("joinCard").hidden = !!mine;
+  $("mineCard").hidden = !mine;
+  if (mine) {
+    const idx = act.findIndex(x => x.n === mine.n);
+    const isTurn = idx === 0;
+    $("mineCard").classList.toggle("turn", isTurn);
+    $("myNum").textContent = "#" + mine.n;
+    // idx = number of people ahead of me
+    $("myState").textContent = isTurn ? s.turn : idx === 1 ? s.next + " · " + s.ahead1 : s.ahead(idx);
+    $("doneBtn").hidden = !isTurn;
+    $("leaveBtn").hidden = isTurn;
+    if (isTurn && !wasMyTurn) {
+      try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch (e) {}
+      document.title = "🔔 " + s.turn;
+    }
+    if (!isTurn) document.title = s.pageTitle;
+    wasMyTurn = isTurn;
+  } else { wasMyTurn = false; document.title = s.pageTitle; }
+
+  // list
+  const ul = $("list");
+  ul.textContent = "";
+  act.forEach((x, i) => {
+    const li = document.createElement("li");
+    if (mine && x.n === mine.n) li.className = "me";
+    const n = document.createElement("span"); n.className = "n"; n.textContent = "#" + x.n;
+    const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = x.name;
+    const tag = document.createElement("span"); tag.className = "tag" + (i === 0 ? " now" : ""); tag.textContent = i === 0 ? s.nowTag : s.wait;
+    li.append(n, nm, tag);
+    if (isAdmin) {
+      const d = document.createElement("button"); d.className = "mini"; d.type = "button"; d.textContent = s.doneBtn;
+      d.onclick = () => update(ref(db, "tickets/" + x.n), { done: true });
+      const r = document.createElement("button"); r.className = "mini del"; r.type = "button"; r.textContent = s.remove;
+      r.onclick = () => remove(ref(db, "tickets/" + x.n));
+      li.append(d, r);
+    }
+    ul.appendChild(li);
+  });
+  $("empty").hidden = act.length > 0;
+  $("count").textContent = act.length ? s.waiting(act.length) + (served ? " · " + s.served(served) : "") : (served ? s.served(served) : "");
+  $("count").hidden = !$("count").textContent;
+  $("admin").hidden = !isAdmin;
+}
+
+function showNotice(msg) { $("notice").textContent = msg; $("notice").hidden = !msg; }
+
+async function join() {
+  const name = $("nameIn").value.trim().slice(0, 30);
+  if (!name || !db) { $("nameIn").focus(); return; }
+  $("joinBtn").disabled = true;
+  try {
+    const res = await runTransaction(ref(db, "counter"), c => (typeof c === "number" ? c : 0) + 1);
+    const n = res.snapshot.val();
+    await set(ref(db, "tickets/" + n), { n, name, done: false, ts: serverTimestamp() });
+    myN = n;
+    try { localStorage.setItem("q_my", String(n)); } catch (e) {}
+    $("nameIn").value = "";
+  } catch (e) { showNotice(t().err); }
+  $("joinBtn").disabled = false;
+}
+
+function finish() {
+  if (!myN || !db) return;
+  update(ref(db, "tickets/" + myN), { done: true })
+    .then(() => {
+      myN = null;
+      wasMyTurn = false;
+      try { localStorage.removeItem("q_my"); } catch (e) {}
+      render();
+    })
+    .catch(() => showNotice(t().err));
+}
+
+function leaveQueue() {
+  if (!myN || !db) return;
+  const ticketNumber = myN;
+  remove(ref(db, "tickets/" + ticketNumber))
+    .then(() => {
+      myN = null;
+      wasMyTurn = false;
+      try { localStorage.removeItem("q_my"); } catch (e) {}
+      render();
+    })
+    .catch(() => showNotice(t().err));
+}
+
+$("joinBtn").addEventListener("click", join);
+$("nameIn").addEventListener("keydown", e => { if (e.key === "Enter") join(); });
+$("doneBtn").addEventListener("click", finish);
+$("leaveBtn").addEventListener("click", leaveQueue);
+$("langBtn").addEventListener("click", () => {
+  lang = lang === "en" ? "he" : "en";
+  try { localStorage.setItem("q_lang", lang); } catch (e) {}
+  applyLang();
+});
+$("resetBtn").addEventListener("click", async () => {
+  if (!confirm(t().resetAsk)) return;
+  await remove(ref(db, "tickets"));
+  await set(ref(db, "counter"), 0);
+});
+
+applyLang();
+
+if (firebaseConfig.apiKey.startsWith("YOUR_") || firebaseConfig.databaseURL.includes("YOUR_")) {
+  showNotice(t().setup);
+  $("joinBtn").disabled = true;
+} else {
+  try {
+    db = getDatabase(app);
+    onValue(ref(db, "tickets"), snap => {
+      connected = true;
+      tickets = snap.val() || {};
+      showNotice("");
+      render();
+    }, () => showNotice(t().err));
+  } catch (e) { showNotice(t().err); }
+}
+</script>
+</body>
+</html>
